@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tic Tac Toe</title>
+<style>
+  body { font-family: sans-serif; display: grid; place-items: center; height: 100vh; margin: 0; }
+  #b { display: grid; grid-template-columns: repeat(3, 80px); gap: 4px; }
+  button { width: 80px; height: 80px; font-size: 40px; }
+</style>
+<p id="s">X's turn</p>
+<div id="b"></div>
+<p><button onclick="reset()" style="width:auto;height:auto;font-size:16px">Restart</button></p>
+<script>
+const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let cells, turn, over;
+function reset() {
+  cells = Array(9).fill(""); turn = "X"; over = false;
+  b.innerHTML = "";
+  cells.forEach((_, i) => {
+    const c = document.createElement("button");
+    c.onclick = () => play(i, c);
+    b.append(c);
+  });
+  s.textContent = "X's turn";
+}
+function play(i, c) {
+  if (over || cells[i]) return;
+  cells[i] = c.textContent = turn;
+  if (lines.some(l => l.every(j => cells[j] === turn))) { s.textContent = turn + " wins"; over = true; }
+  else if (cells.every(Boolean)) { s.textContent = "Draw"; over = true; }
+  else { turn = turn === "X" ? "O" : "X"; s.textContent = turn + "'s turn"; }
+}
+reset();
+</script>
