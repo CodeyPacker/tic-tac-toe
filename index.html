@@ -2,36 +2,138 @@
 <meta charset="utf-8">
 <title>Tic Tac Toe</title>
 <style>
-  body { font-family: sans-serif; display: grid; place-items: center; height: 100vh; margin: 0; }
-  #b { display: grid; grid-template-columns: repeat(3, 80px); gap: 4px; }
-  button { width: 80px; height: 80px; font-size: 40px; }
+  body { font-family: sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+  main { text-align: center; }
+  #b { display: grid; grid-template-columns: repeat(3, 80px); gap: 4px; justify-content: center; }
+  #b button { width: 80px; height: 80px; font-size: 40px; }
+  form input { display: block; margin: 6px auto; padding: 6px; }
+  #err { color: crimson; min-height: 1.2em; }
+  [hidden] { display: none !important; }
 </style>
-<p id="s">X's turn</p>
-<div id="b"></div>
-<p><button onclick="reset()" style="width:auto;height:auto;font-size:16px">Restart</button></p>
+<main>
+  <section id="auth">
+    <h2>Log in to save your stats</h2>
+    <form id="authForm">
+      <input id="user" placeholder="Username" autocomplete="username" required>
+      <input id="pass" type="password" placeholder="Password" autocomplete="current-password" required>
+      <button data-action="login">Log in</button>
+      <button data-action="signup">Sign up</button>
+    </form>
+    <p id="err"></p>
+  </section>
+  <section id="profile" hidden>
+    <p>Signed in as <b id="uname"></b> <button id="logout">Log out</button></p>
+    <p id="stats"></p>
+  </section>
+  <p>You are X. The computer is O.</p>
+  <p id="s">Your turn</p>
+  <div id="b"></div>
+  <p><button onclick="reset()">Restart</button></p>
+</main>
 <script>
 const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-let cells, turn, over;
+let cells, over, token = localStorage.getItem("token");
+
+// ---- Accounts ----
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: body && JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data;
+}
+
+function showUser(data) {
+  auth.hidden = !!data;
+  profile.hidden = !data;
+  if (!data) return;
+  uname.textContent = data.username;
+  showStats(data.stats);
+}
+
+function showStats(st) {
+  stats.textContent = `Wins: ${st.wins}  Losses: ${st.losses}  Draws: ${st.draws}`;
+}
+
+authForm.onsubmit = async (e) => {
+  e.preventDefault();
+  err.textContent = "";
+  try {
+    const data = await api("/api/" + e.submitter.dataset.action, { username: user.value, password: pass.value });
+    token = data.token;
+    localStorage.setItem("token", token);
+    pass.value = "";
+    showUser(data);
+  } catch (e) {
+    err.textContent = e.message;
+  }
+};
+
+logout.onclick = async () => {
+  await api("/api/logout", {}).catch(() => {});
+  token = null;
+  localStorage.removeItem("token");
+  showUser(null);
+};
+
+if (token) api("/api/me").then(showUser).catch(() => localStorage.removeItem("token"));
+
+// ---- Game ----
+function winner(c) {
+  const l = lines.find(l => c[l[0]] && l.every(j => c[j] === c[l[0]]));
+  return l && { mark: c[l[0]], line: l };
+}
+
+// Win if possible, else block, else center, else random.
+function cpuMove() {
+  for (const mark of ["O", "X"]) {
+    for (let i = 0; i < 9; i++) {
+      if (cells[i]) continue;
+      const t = cells.slice(); t[i] = mark;
+      if (winner(t)) return i;
+    }
+  }
+  if (!cells[4]) return 4;
+  const open = cells.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+  return open[Math.floor(Math.random() * open.length)];
+}
+
+function place(i, mark) {
+  cells[i] = b.children[i].textContent = mark;
+  const w = winner(cells);
+  if (w) {
+    w.line.forEach(j => b.children[j].style.background = "gold");
+    s.textContent = w.mark === "X" ? "You win" : "Computer wins";
+    finish(w.mark === "X" ? "win" : "loss");
+  } else if (cells.every(Boolean)) {
+    s.textContent = "Draw";
+    finish("draw");
+  }
+}
+
+function finish(result) {
+  over = true;
+  if (token && !profile.hidden) api("/api/result", { result }).then(d => showStats(d.stats)).catch(() => {});
+}
+
+function play(i) {
+  if (over || cells[i]) return;
+  place(i, "X");
+  if (!over) place(cpuMove(), "O");
+}
+
 function reset() {
-  cells = Array(9).fill(""); turn = "X"; over = false;
+  cells = Array(9).fill(""); over = false;
   b.innerHTML = "";
   cells.forEach((_, i) => {
     const c = document.createElement("button");
-    c.onclick = () => play(i, c);
+    c.onclick = () => play(i);
     b.append(c);
   });
-  s.textContent = "X's turn";
-}
-function play(i, c) {
-  if (over || cells[i]) return;
-  cells[i] = c.textContent = turn;
-  const win = lines.find(l => l.every(j => cells[j] === turn));
-  if (win) {
-    win.forEach(j => b.children[j].style.background = "gold");
-    s.textContent = turn + " wins"; over = true;
-  }
-  else if (cells.every(Boolean)) { s.textContent = "Draw"; over = true; }
-  else { turn = turn === "X" ? "O" : "X"; s.textContent = turn + "'s turn"; }
+  s.textContent = "Your turn";
 }
 reset();
 </script>
