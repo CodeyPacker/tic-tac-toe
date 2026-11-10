@@ -57,7 +57,7 @@ function startSession(res, username, user) {
 }
 
 const routes = {
-  "POST /api/signup": async (req, res) => {
+  "POST /api/create": async (req, res) => {
     const { username, password } = await readBody(req);
     if (typeof username !== "string" || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
       return send(res, 400, { error: "Username must be 3-20 letters, numbers, or _" });
