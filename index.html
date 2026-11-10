@@ -25,7 +25,11 @@ function reset() {
 function play(i, c) {
   if (over || cells[i]) return;
   cells[i] = c.textContent = turn;
-  if (lines.some(l => l.every(j => cells[j] === turn))) { s.textContent = turn + " wins"; over = true; }
+  const win = lines.find(l => l.every(j => cells[j] === turn));
+  if (win) {
+    win.forEach(j => b.children[j].style.background = "gold");
+    s.textContent = turn + " wins"; over = true;
+  }
   else if (cells.every(Boolean)) { s.textContent = "Draw"; over = true; }
   else { turn = turn === "X" ? "O" : "X"; s.textContent = turn + "'s turn"; }
 }
